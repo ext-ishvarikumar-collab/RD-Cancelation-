@@ -15,6 +15,9 @@
   const skuDataCache = {};
   let lastSearchedEan = "";
 
+  // Completed LPNs status tracking
+  let processedLpns = JSON.parse(localStorage.getItem("zepto_processed_lpns") || "{}");
+
   function buildFullImageUrl(rawImage) {
     if (!rawImage) return null;
     if (rawImage.startsWith("http://") || rawImage.startsWith("https://")) return rawImage;
@@ -106,59 +109,62 @@
     ${blobSvg}
 
     <!-- Top Bar -->
-    <header style="position: relative; z-index: 10; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0; padding: 12px 28px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.04);">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <span style="background: linear-gradient(90deg, #ef4444 0%, #2563eb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; font-size: 21px; letter-spacing: 0.5px;">
-          ⚡ ZEPTOWMS LPN RADAR
+    <header style="position: relative; z-index: 10; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: linear-gradient(90deg, #ef4444 0%, #2563eb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; font-size: 20px; letter-spacing: 0.5px;">
+          ⚡ ZEPTOWMS RADAR
         </span>
-        <span id="csv-status-tag" style="font-size: 13px; font-weight: 600; color: #475569; background: #ffffff; padding: 4px 14px; border-radius: 20px; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <span id="csv-status-tag" style="font-size: 12px; font-weight: 600; color: #475569; background: #ffffff; padding: 4px 12px; border-radius: 20px; border: 1px solid #cbd5e1;">
           No CSV Loaded
         </span>
-        <span id="queue-status-tag" style="font-size: 13px; font-weight: 700; color: #2563eb; display: none; background: #eff6ff; padding: 4px 12px; border-radius: 12px; border: 1px solid #bfdbfe;">
-          ⏳ Loading SKU Bin Data...
+        <span id="queue-status-tag" style="font-size: 12px; font-weight: 700; color: #2563eb; display: none; background: #eff6ff; padding: 4px 10px; border-radius: 12px; border: 1px solid #bfdbfe;">
+          ⏳ Loading...
         </span>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
         <input type="file" id="csv-picker-input" accept=".csv" style="display: none;" />
-        <button id="btn-upload-file" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);">
+        <button id="btn-upload-file" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border: none; padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer;">
           📂 Upload CSV
         </button>
-        <!-- Sirf uploaded CSV delete karne wala button -->
-        <button id="btn-clear-storage" style="background: #fff1f2; color: #e11d48; border: 1px solid #fda4af; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;">
-          🗑️ Clear CSV Data
+        <!-- Download Local Store Data Button -->
+        <button id="btn-download-csv" style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; border: none; padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
+          📥 Export Status CSV
         </button>
-        <button id="btn-close-dash" style="background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer;">
+        <button id="btn-clear-storage" style="background: #fff1f2; color: #e11d48; border: 1px solid #fda4af; padding: 7px 12px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer;">
+          🗑️ Clear CSV
+        </button>
+        <button id="btn-close-dash" style="background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 7px 12px; border-radius: 7px; font-weight: 800; cursor: pointer;">
           ✕ Exit
         </button>
       </div>
     </header>
 
-    <!-- Scan & Filter Control Bar -->
-    <div style="position: relative; z-index: 10; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); padding: 12px 28px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 14px; align-items: center;">
-      <input type="text" id="scanner-input" autofocus placeholder="Scan Barcode / Type EAN and press Enter..." 
-        style="flex: 1; padding: 12px 18px; font-size: 15px; font-weight: 500; background: #ffffff; border: 2px solid #3b82f6; border-radius: 10px; color: #0f172a; outline: none; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);" />
+    <!-- Scanner Bar -->
+    <div style="position: relative; z-index: 10; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); padding: 10px 24px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 12px; align-items: center;">
+      <input type="text" id="scanner-input" autofocus placeholder="Scan Barcode / Type EAN and hit Enter..." 
+        style="flex: 1; padding: 10px 16px; font-size: 15px; font-weight: 500; background: #ffffff; border: 2px solid #3b82f6; border-radius: 8px; color: #0f172a; outline: none;" />
 
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <label for="sku-count-filter" style="font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap;">SKU Filter:</label>
-        <select id="sku-count-filter" style="padding: 11px 14px; font-size: 14px; font-weight: 700; background: #ffffff; color: #2563eb; border: 2px solid #3b82f6; border-radius: 10px; outline: none; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
-          <option value="all">All LPNs (Sabhi)</option>
-          <option value="1">Sirf 1 SKU LPN</option>
-          <option value="2">Sirf 2 SKU LPN</option>
-          <option value="3">Sirf 3 SKU LPN</option>
-          <option value="4+">4 ya usse jyada SKU</option>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <label for="sku-count-filter" style="font-size: 13px; font-weight: 700; color: #1e293b;">Filter:</label>
+        <select id="sku-count-filter" style="padding: 9px 12px; font-size: 13px; font-weight: 700; background: #ffffff; color: #2563eb; border: 2px solid #3b82f6; border-radius: 8px; outline: none; cursor: pointer;">
+          <option value="all">All LPNs</option>
+          <option value="1">1 SKU Only</option>
+          <option value="2">2 SKUs Only</option>
+          <option value="3">3 SKUs Only</option>
+          <option value="4+">4+ SKUs</option>
         </select>
       </div>
 
-      <button id="btn-search-trigger" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 26px; border-radius: 10px; font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 10px rgba(16,185,129,0.25);">
+      <button id="btn-search-trigger" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 800; cursor: pointer;">
         🔍 Search
       </button>
     </div>
 
-    <!-- Mobile-Screen Multi LPN Board -->
-    <main id="scanner-results-area" style="position: relative; z-index: 5; flex: 1; overflow-x: auto; overflow-y: hidden; padding: 22px 28px; display: flex; gap: 24px; align-items: stretch;">
+    <!-- Mobile Deck Stage -->
+    <main id="scanner-results-area" style="position: relative; z-index: 5; flex: 1; overflow-x: auto; overflow-y: hidden; padding: 20px 24px; display: flex; gap: 24px; align-items: stretch;">
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; color: #64748b; font-size: 16px;">
-        <div style="font-size: 52px; margin-bottom: 12px;">📱</div>
+        <div style="font-size: 48px; margin-bottom: 10px;">📱</div>
         Pehle <b>Upload CSV</b> karke Barcode scan ya type kijiye.
       </div>
     </main>
@@ -171,7 +177,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(15, 23, 42, 0.82);
+      background: rgba(15, 23, 42, 0.85);
       backdrop-filter: blur(8px);
       z-index: 100000000;
       align-items: center;
@@ -179,9 +185,9 @@
       flex-direction: column;
       pointer-events: none;
     ">
-      <div style="background: #ffffff; padding: 18px; border-radius: 20px; box-shadow: 0 25px 70px rgba(0,0,0,0.5); max-width: 85vw; max-height: 85vh; display: flex; flex-direction: column; align-items: center;">
+      <div style="background: #ffffff; padding: 16px; border-radius: 18px; box-shadow: 0 25px 70px rgba(0,0,0,0.5); max-width: 85vw; max-height: 85vh; display: flex; flex-direction: column; align-items: center;">
         <img id="preview-modal-img" src="" referrerpolicy="no-referrer" style="max-width: 75vw; max-height: 70vh; object-fit: contain; border-radius: 10px;" />
-        <div id="preview-modal-title" style="margin-top: 14px; font-size: 16px; font-weight: 800; color: #0f172a; text-align: center; max-width: 650px;"></div>
+        <div id="preview-modal-title" style="margin-top: 12px; font-size: 15px; font-weight: 800; color: #0f172a; text-align: center; max-width: 650px;"></div>
       </div>
     </div>
   `;
@@ -190,6 +196,7 @@
 
   const barcodeInput = document.getElementById("scanner-input");
   const uploadBtn = document.getElementById("btn-upload-file");
+  const downloadBtn = document.getElementById("btn-download-csv");
   const filePicker = document.getElementById("csv-picker-input");
   const closeBtn = document.getElementById("btn-close-dash");
   const searchBtn = document.getElementById("btn-search-trigger");
@@ -215,12 +222,85 @@
     modalImg.src = "";
   };
 
+  // Process / Complete LPN Handler
+  window.toggleLpnProcess = function (lpn) {
+    const isCompleted = processedLpns[lpn] === "COMPLETED";
+    const newStatus = isCompleted ? "PENDING" : "COMPLETED";
+    
+    if (newStatus === "COMPLETED") {
+      processedLpns[lpn] = "COMPLETED";
+    } else {
+      delete processedLpns[lpn];
+    }
+    
+    localStorage.setItem("zepto_processed_lpns", JSON.stringify(processedLpns));
+
+    const card = document.getElementById(`mobile-card-${lpn}`);
+    const btn = document.getElementById(`process-btn-${lpn}`);
+    const body = document.getElementById(`mobile-body-${lpn}`);
+
+    if (card && btn && body) {
+      if (newStatus === "COMPLETED") {
+        card.style.borderColor = "#10b981";
+        card.style.boxShadow = "0 16px 36px rgba(16, 185, 129, 0.25)";
+        body.style.background = "#ecfdf5";
+        btn.innerHTML = "✅ COMPLETED";
+        btn.style.background = "#10b981";
+        btn.style.color = "#ffffff";
+      } else {
+        card.style.borderColor = "#1e293b";
+        card.style.boxShadow = "0 16px 36px rgba(0, 0, 0, 0.08)";
+        body.style.background = "#f8fafc";
+        btn.innerHTML = "⚡ Process LPN";
+        btn.style.background = "#ffffff";
+        btn.style.color = "#0f172a";
+      }
+    }
+  };
+
   closeBtn.onclick = () => appContainer.remove();
   uploadBtn.onclick = () => filePicker.click();
 
-  // Clear Only Uploaded CSV Data Logic
+  // Export updated records to CSV
+  downloadBtn.onclick = () => {
+    if (!csvRecords.length) {
+      alert("Koi CSV data load nahi hai export karne ke liye.");
+      return;
+    }
+
+    const headers = Object.keys(csvRecords[0]);
+    if (!headers.includes("Status")) {
+      headers.push("Status");
+    }
+
+    const csvRows = [headers.join(",")];
+
+    csvRecords.forEach(item => {
+      const row = headers.map(header => {
+        let val = "";
+        if (header === "Status") {
+          val = processedLpns[item["lpn"]] === "COMPLETED" ? "COMPLETED" : "PENDING";
+        } else {
+          val = item[header] || "";
+        }
+        val = String(val).replace(/"/g, '""');
+        return `"${val}"`;
+      });
+      csvRows.push(row.join(","));
+    });
+
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `WMS_Inventory_Status_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Clear Uploaded CSV Storage
   clearStorageBtn.onclick = () => {
-    if (confirm("Kya aap sach me uploaded CSV data delete karna chahte hain?")) {
+    if (confirm("Kya aap uploaded CSV data delete karna chahte hain?")) {
       localStorage.removeItem("zepto_csv_storage_data");
       csvRecords = [];
       lastSearchedEan = "";
@@ -231,13 +311,12 @@
       statusTag.style.background = "#ffffff";
       resultsArea.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; color: #64748b; font-size: 16px;">
-          <div style="font-size: 52px; margin-bottom: 12px;">🗑️</div>
-          CSV data clear ho chuka hai. Nayi file upload kijiye.
+          <div style="font-size: 48px; margin-bottom: 10px;">🗑️</div>
+          CSV data delete ho gaya hai.
         </div>`;
     }
   };
 
-  // CSV Reader
   filePicker.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -251,7 +330,6 @@
     reader.readAsText(file);
   };
 
-  // Cached CSV Check
   const localCache = localStorage.getItem("zepto_csv_storage_data");
   if (localCache) {
     try {
@@ -263,7 +341,7 @@
   }
 
   function updateStatusDisplay(count, source) {
-    statusTag.textContent = `🟢 ${count} Rows Loaded (${source})`;
+    statusTag.textContent = `🟢 ${count} Rows (${source})`;
     statusTag.style.color = "#16a34a";
     statusTag.style.borderColor = "#bbf7d0";
     statusTag.style.background = "#f0fdf4";
@@ -360,7 +438,7 @@
       resultsArea.innerHTML = `
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; text-align: center; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
           <h2 style="color: #d97706; margin-top: 0; font-size: 18px;">⚠️ Filter Match Empty</h2>
-          <p style="color: #64748b; font-size: 14px;">EAN <b>${barcodeInput.value}</b> mila, par selected filter (<b>${selectedFilter} SKU</b>) ke anuroop koi LPN nahi hai.</p>
+          <p style="color: #64748b; font-size: 14px;">EAN <b>${barcodeInput.value}</b> mila, par selected filter (<b>${selectedFilter} SKU</b>) ke mutabik koi LPN nahi hai.</p>
         </div>`;
       barcodeInput.select();
       return;
@@ -372,29 +450,31 @@
     for (const lpn of relatedLpns) {
       const itemsInThisLpn = csvRecords.filter(r => r["lpn"] === lpn);
       const totalUnitsInLpn = itemsInThisLpn.reduce((acc, curr) => acc + (parseInt(curr["totalQuantity"]) || 0), 0);
+      const isCompleted = processedLpns[lpn] === "COMPLETED";
 
       mobileDeckHtml += `
-        <div style="
+        <div id="mobile-card-${lpn}" style="
           width: 380px; 
           min-width: 380px; 
           background: #ffffff; 
           border-radius: 28px; 
-          border: 4px solid #1e293b; 
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04); 
+          border: 4px solid ${isCompleted ? '#10b981' : '#1e293b'}; 
+          box-shadow: ${isCompleted ? '0 16px 36px rgba(16, 185, 129, 0.25)' : '0 16px 36px rgba(0, 0, 0, 0.08)'}; 
           display: flex; 
           flex-direction: column; 
           overflow: hidden; 
           height: calc(100vh - 180px);
+          transition: all 0.3s ease;
         ">
-          <!-- Mobile Speaker Notch -->
+          <!-- Notch -->
           <div style="background: #1e293b; height: 18px; display: flex; justify-content: center; align-items: center;">
             <div style="width: 45px; height: 4px; background: #475569; border-radius: 10px;"></div>
           </div>
 
-          <!-- Mobile Header (Red & Blue Gradient) -->
-          <div style="background: linear-gradient(135deg, #ef4444 0%, #2563eb 100%); color: white; padding: 14px 16px;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #2563eb 100%); color: white; padding: 12px 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 900; font-size: 16px; letter-spacing: 0.5px;">📦 ${lpn}</span>
+              <span style="font-weight: 900; font-size: 15px; letter-spacing: 0.5px;">📦 ${lpn}</span>
               <span style="background: rgba(255,255,255,0.25); font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 12px;">
                 Qty: ${totalUnitsInLpn}
               </span>
@@ -405,8 +485,8 @@
             </div>
           </div>
 
-          <!-- Mobile Screen Body -->
-          <div style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: #f8fafc;">
+          <!-- Body (Changes to light green #ecfdf5 on process) -->
+          <div id="mobile-body-${lpn}" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: ${isCompleted ? '#ecfdf5' : '#f8fafc'}; transition: background 0.3s ease;">
       `;
 
       for (const item of itemsInThisLpn) {
@@ -431,7 +511,6 @@
             gap: 8px;
           ">
             <div style="display: flex; gap: 10px; align-items: center;">
-              <!-- Image Box -->
               <div class="img-box-${sku}" 
                    data-desc="${sanitizedDesc}"
                    onmouseenter="if(this.querySelector('img')) window.showFullImageHover(this.querySelector('img').src, this.getAttribute('data-desc'))"
@@ -442,7 +521,6 @@
                   : `<span style="font-size: 11px; color: #94a3b8;">⏳ Wait...</span>`}
               </div>
 
-              <!-- Content Area -->
               <div style="flex: 1; min-width: 0;">
                 <div style="font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${item["skuDescription"]}">
                   ${item["skuDescription"] || "-"}
@@ -472,12 +550,36 @@
         `;
       }
 
-      mobileDeckHtml += `</div></div>`;
+      // Process Action Button Bar at Bottom of Mobile Screen
+      mobileDeckHtml += `
+          </div>
+          <div style="padding: 10px 14px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; justify-content: center;">
+            <button id="process-btn-${lpn}" 
+                    onclick="window.toggleLpnProcess('${lpn}')" 
+                    style="
+                      width: 100%; 
+                      padding: 10px; 
+                      border-radius: 10px; 
+                      font-size: 13px; 
+                      font-weight: 800; 
+                      cursor: pointer; 
+                      border: 2px solid #10b981; 
+                      background: ${isCompleted ? '#10b981' : '#ffffff'}; 
+                      color: ${isCompleted ? '#ffffff' : '#0f172a'}; 
+                      transition: all 0.2s ease;
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+                    ">
+              ${isCompleted ? '✅ COMPLETED' : '⚡ Process LPN'}
+            </button>
+          </div>
+        </div>
+      `;
     }
 
     resultsArea.innerHTML = mobileDeckHtml;
     barcodeInput.select();
 
+    // Queue for SKU data
     queueStatusTag.style.display = "inline-block";
 
     let completed = 0;
