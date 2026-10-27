@@ -74,7 +74,6 @@
     return null;
   }
 
-  // Dashboard Frame (Flat Background with Soft Liquid Shapes)
   const appContainer = document.createElement("div");
   appContainer.id = "zepto-wms-light-dashboard";
   appContainer.style.cssText = `
@@ -94,16 +93,11 @@
     position: relative;
   `;
 
-  // Flat Design SVG Soft Liquid Blob Shapes injected directly in background
   const blobSvg = `
     <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.85;" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1440 900">
-      <!-- Soft Liquid Blue Blob 1 -->
       <path fill="#d2e3fc" d="M1080,180 C1220,120 1380,240 1440,380 L1440,0 L960,0 C980,60 1020,150 1080,180 Z"></path>
-      <!-- Soft Liquid Teal/Mint Blob 2 -->
       <path fill="#e0f2fe" d="M-60,420 C60,320 220,380 280,500 C340,620 240,780 120,840 C-20,890 -100,780 -120,680 Z"></path>
-      <!-- Soft Liquid Lavender Blob 3 -->
       <path fill="#ede9fe" d="M720,700 C860,620 1040,680 1160,780 C1280,880 1180,940 1020,950 C880,960 760,920 680,840 C640,790 660,730 720,700 Z"></path>
-      <!-- Soft Peach/Coral Liquid Accent Blob 4 -->
       <path fill="#ffe4e6" d="M420,110 C510,40 640,80 700,160 C760,240 700,320 610,340 C520,360 410,330 380,250 C360,190 380,140 420,110 Z" opacity="0.6"></path>
     </svg>
   `;
@@ -112,7 +106,7 @@
     ${blobSvg}
 
     <!-- Top Bar -->
-    <header style="position: relative; z-index: 10; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0; padding: 12px 28px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.04);">
+    <header style="position: relative; z-index: 10; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(16px); border-bottom: 2px solid #e2e8f0; padding: 12px 28px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.04);">
       <div style="display: flex; align-items: center; gap: 14px;">
         <span style="background: linear-gradient(90deg, #ef4444 0%, #2563eb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; font-size: 21px; letter-spacing: 0.5px;">
           ⚡ ZEPTOWMS LPN RADAR
@@ -125,10 +119,14 @@
         </span>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
         <input type="file" id="csv-picker-input" accept=".csv" style="display: none;" />
-        <button id="btn-upload-file" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);">
+        <button id="btn-upload-file" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);">
           📂 Upload CSV
+        </button>
+        <!-- Sirf uploaded CSV delete karne wala button -->
+        <button id="btn-clear-storage" style="background: #fff1f2; color: #e11d48; border: 1px solid #fda4af; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;">
+          🗑️ Clear CSV Data
         </button>
         <button id="btn-close-dash" style="background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer;">
           ✕ Exit
@@ -152,7 +150,7 @@
         </select>
       </div>
 
-      <button id="btn-search-trigger" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 12px 26px; border-radius: 10px; font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 10px rgba(37,99,235,0.25);">
+      <button id="btn-search-trigger" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 26px; border-radius: 10px; font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 10px rgba(16,185,129,0.25);">
         🔍 Search
       </button>
     </div>
@@ -195,6 +193,7 @@
   const filePicker = document.getElementById("csv-picker-input");
   const closeBtn = document.getElementById("btn-close-dash");
   const searchBtn = document.getElementById("btn-search-trigger");
+  const clearStorageBtn = document.getElementById("btn-clear-storage");
   const resultsArea = document.getElementById("scanner-results-area");
   const statusTag = document.getElementById("csv-status-tag");
   const queueStatusTag = document.getElementById("queue-status-tag");
@@ -219,6 +218,25 @@
   closeBtn.onclick = () => appContainer.remove();
   uploadBtn.onclick = () => filePicker.click();
 
+  // Clear Only Uploaded CSV Data Logic
+  clearStorageBtn.onclick = () => {
+    if (confirm("Kya aap sach me uploaded CSV data delete karna chahte hain?")) {
+      localStorage.removeItem("zepto_csv_storage_data");
+      csvRecords = [];
+      lastSearchedEan = "";
+      filePicker.value = "";
+      statusTag.textContent = "No CSV Loaded";
+      statusTag.style.color = "#475569";
+      statusTag.style.borderColor = "#cbd5e1";
+      statusTag.style.background = "#ffffff";
+      resultsArea.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; color: #64748b; font-size: 16px;">
+          <div style="font-size: 52px; margin-bottom: 12px;">🗑️</div>
+          CSV data clear ho chuka hai. Nayi file upload kijiye.
+        </div>`;
+    }
+  };
+
   // CSV Reader
   filePicker.onchange = (e) => {
     const file = e.target.files[0];
@@ -233,6 +251,7 @@
     reader.readAsText(file);
   };
 
+  // Cached CSV Check
   const localCache = localStorage.getItem("zepto_csv_storage_data");
   if (localCache) {
     try {
@@ -354,7 +373,6 @@
       const itemsInThisLpn = csvRecords.filter(r => r["lpn"] === lpn);
       const totalUnitsInLpn = itemsInThisLpn.reduce((acc, curr) => acc + (parseInt(curr["totalQuantity"]) || 0), 0);
 
-      // Clean White Mobile Frame
       mobileDeckHtml += `
         <div style="
           width: 380px; 
@@ -460,7 +478,6 @@
     resultsArea.innerHTML = mobileDeckHtml;
     barcodeInput.select();
 
-    // Sequential Queue to load sku-bin-lot
     queueStatusTag.style.display = "inline-block";
 
     let completed = 0;
